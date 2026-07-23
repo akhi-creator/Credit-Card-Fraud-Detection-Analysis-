@@ -1,0 +1,78 @@
+// =========================================================================
+// POWER BI DAX MEASURES - CREDIT CARD FRAUD DETECTION ANALYSIS
+// Table Target: 'transactions' / 'power_bi_export'
+// =========================================================================
+
+// 1. Core Volume Metrics
+Total Transactions = COUNT(transactions[transaction_id])
+
+Total Unique Customers = DISTINCTCOUNT(transactions[customer_id])
+
+Total Transaction Volume ($) = SUM(transactions[amount])
+
+Average Transaction Amount ($) = AVERAGE(transactions[amount])
+
+
+// 2. Fraud Core Metrics
+Total Fraud Cases = CALCULATE(
+    COUNT(transactions[transaction_id]),
+    transactions[is_fraud] = 1
+)
+
+Total Legitimate Cases = CALCULATE(
+    COUNT(transactions[transaction_id]),
+    transactions[is_fraud] = 0
+)
+
+Overall Fraud Rate % = DIVIDE([Total Fraud Cases], [Total Transactions], 0) * 100
+
+Total Fraud Loss ($) = CALCULATE(
+    SUM(transactions[amount]),
+    transactions[is_fraud] = 1
+)
+
+Avg Fraud Amount ($) = CALCULATE(
+    AVERAGE(transactions[amount]),
+    transactions[is_fraud] = 1
+)
+
+
+// 3. Anomaly & Risk Indicator Measures
+High Price Ratio Transactions = CALCULATE(
+    COUNT(transactions[transaction_id]),
+    transactions[ratio_to_median_price] >= 3.0
+)
+
+Distance Anomaly Count = CALCULATE(
+    COUNT(transactions[transaction_id]),
+    transactions[distance_from_home] >= 100.0
+)
+
+Night Time Fraud Cases = CALCULATE(
+    [Total Fraud Cases],
+    transactions[is_night_transaction] = 1
+)
+
+Online Order Fraud Rate % = DIVIDE(
+    CALCULATE([Total Fraud Cases], transactions[is_online_order] = 1),
+    CALCULATE([Total Transactions], transactions[is_online_order] = 1),
+    0
+) * 100
+
+Average Risk Severity Score = AVERAGE(transactions[risk_severity_score])
+
+
+// 4. Dynamic KPI Card Colors / Alert Indicators (DAX Format Rules)
+Risk Status Indicator = 
+IF(
+    [Overall Fraud Rate %] > 5.0, "CRITICAL RISK",
+    IF([Overall Fraud Rate %] > 2.5, "MODERATE RISK", "LOW RISK")
+)
+
+Category Risk Rank = RANKX(
+    ALL(transactions[merchant_category]),
+    [Total Fraud Loss ($)],
+    ,
+    DESC,
+    Dense
+)
